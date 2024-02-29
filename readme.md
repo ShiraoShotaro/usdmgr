@@ -246,3 +246,7 @@ USDView を起動したり, 履歴を記憶して起動したり, などなど�
 |23.11 / python3.9 / release | `myplugin/2311/py39/release/plugin` `myplugin/2311/py39/release/bin` | `myplugin/2311/py39/release/plugin` `myplugin/2311/py39/release/usdview` | `myplugin/2311/py39/release/python` |
 |23.11 / No python / release | `myplugin/2311/_/release/plugin` `myplugin/2311/_/release/bin` | `myplugin/2311/_/release/plugin` `myplugin/2311/_/release/usdview` | `myplugin/2311/_/release/python` |
 |24.03 / python3.11 / debug | `myplugin/2403/py311/debug/plugin` `myplugin/2403/py311/debug/bin` | `myplugin/2403/py311/debug/plugin` `myplugin/2403/py311/debug/usdview` | `myplugin/2403/py311/debug/python` |
+
+# Lisence
+
+This project are licensed under the MIT License, see the [license.txt](license.txt) file for details.
