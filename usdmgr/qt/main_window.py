@@ -1,6 +1,6 @@
 import os
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QTreeWidget, QTreeWidgetItem, QPushButton, QStackedWidget, QLineEdit, QToolButton, QAction
+from PySide2.QtWidgets import QComboBox, QListWidget, QLabel, QTabWidget, QCheckBox, QTreeWidget, QTreeWidgetItem, QPushButton, QStackedWidget, QLineEdit, QToolButton, QAction
 from usdmgr.config import Config
 
 
@@ -12,9 +12,21 @@ class MainWindow:
 
         # fetch
         self.pbConfig: QPushButton = self.ui.pbConfig
+        self.cbUsdVersions: QComboBox = self.ui.cbUsdVersions
+        self.cbPython: QComboBox = self.ui.cbPython
+        self.cbOpenVBD: QCheckBox = self.ui.cbOpenVBD
+        self.cbOIIO: QCheckBox = self.ui.cbOIIO
+        self.cbOCIO: QCheckBox = self.ui.cbOCIO
+        self.cbPtex: QCheckBox = self.ui.cbPtex
+        self.lbHeader: QLabel = self.ui.lbHeader
+        self.pbDownload: QPushButton = self.ui.pbDownload
+        self.swSubPage: QStackedWidget = self.ui.swSubPage
+        self.twTools: QTabWidget = self.ui.twTools
         self.pbAddNew: QPushButton = self.ui.pbAddNew
         self.twEnvSets: QTreeWidget = self.ui.twEnvSets
         self.swPage: QStackedWidget = self.ui.swPage
+        self.lwTools: QListWidget = self.ui.lwTools
+        self.lwUsdView: QListWidget = self.ui.lwUsdView
         self.leInstallRootDirectory: QLineEdit = self.ui.leInstallRootDirectory
         self.tbInstallRootDirectory: QToolButton = self.ui.tbInstallRootDirectory
         self.leDownloadTempDirectory: QLineEdit = self.ui.leDownloadTempDirectory
