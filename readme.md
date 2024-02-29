@@ -249,4 +249,4 @@ USDView を起動したり, 履歴を記憶して起動したり, などなど�
 
 # Lisence
 
-This project are licensed under the MIT License, see the [license.txt](license.txt) file for details.
+This project is licensed under the MIT License, see the [license.txt](license.txt) file for details.
