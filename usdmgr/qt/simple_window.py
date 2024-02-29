@@ -133,7 +133,7 @@ class SimpleWindow:
                     iconPath="path/to/icon.png",
                     cmdline="notepad.txt",
                     workingDir=".",
-                    environments=dict(
+                    envvars=dict(
                         PATH="path/to/additional/path;${PATH}"),
                     subEntries=list(
                         [
@@ -141,12 +141,12 @@ class SimpleWindow:
                                 label="Sub entry label 1",
                                 cmdline="notepad.txt /v",
                                 workingDir=".",
-                                environments=dict()),
+                                envvars=dict()),
                             dict(
                                 label="Sub entry label 2",
                                 cmdline="notepad.txt /v",
                                 workingDir=".",
-                                environments=dict()),
+                                envvars=dict()),
                         ])))
             initialData["tools"] = envs
             with open(self._toolsFilepath, mode="w", encoding="utf-8") as fp:
@@ -228,7 +228,7 @@ class SimpleWindow:
             return
 
         env = dict(os.environ)
-        for key, value in toolData.get("environments", dict()).items():
+        for key, value in toolData.get("envvars", dict()).items():
             expanded = os.path.expandvars(value)
             env[key] = expanded
 
@@ -269,13 +269,13 @@ class SimpleWindow:
 
         usdVersion = usdenv.get("usdVersion", "_")
         pythonVersion = "_"
+        configVariant = "debug" if debug else "release"
         if requirePython:
             version = usdenv.get("version", None)
             if version is not None:
                 pythonMajor, pythonMinor = version
             else:
-                ret = subprocess.run(["python",
-                                      "--version"],
+                ret = subprocess.run(["python", "--version"],
                                      env=dict(PATH=f"{venv}/Scripts"),
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
@@ -289,7 +289,9 @@ class SimpleWindow:
 
         self.pteLog.appendPlainText(f"- USD Version = {usdVersion}")
         self.pteLog.appendPlainText(f"- python Version = {pythonVersion}")
-        self.pteLog.appendPlainText("- Config = {}".format("debug" if debug else "release"))
+        self.pteLog.appendPlainText(f"- Config = {configVariant}")
+
+        env["PROMPT"] = f"({usdVersion}/{pythonVersion}/{configVariant}) $P$G"
 
         import glob
         for path in pluginSearchPaths:
@@ -297,11 +299,7 @@ class SimpleWindow:
                 self.pteLog.appendPlainText(f"- Plugin search path '{path}' is not directory.")
                 continue
             for pluginfoPath in glob.glob(
-                "{root}/**/{usdVersion}/{pythonVersion}/{config}/plugin/plugInfo.json".format(
-                    root=path,
-                    usdVersion=usdVersion,
-                    pythonVersion=pythonVersion,
-                    config="debug" if debug else "release"),
+                    f"{path}/**/{usdVersion}/{pythonVersion}/{configVariant}/plugin/plugInfo.json",
                     recursive=True):
                 self.pteLog.appendPlainText(f"- plugInfo found: {pluginfoPath}")
                 pluginRootPath = os.path.dirname(os.path.dirname(pluginfoPath))
@@ -336,6 +334,7 @@ class SimpleWindow:
         gp = self.lwTools.mapToGlobal(p)
         toolData = index.data(Qt.UserRole)
         isDebug = toolData.get("debug", False)
+        actions = list()
         if isDebug is True:
             debugMenu = QMenu()
             debugMenu.setTitle("Debug...")
@@ -343,8 +342,10 @@ class SimpleWindow:
             actionDebug = QAction("Run in debug")
             actionDebug.triggered.connect(
                 lambda *, t=toolData: self.startupTool(t, debug=True))
+            debugMenu.addAction(actionDebug)
+            debugMenu.addSeparator()
+            actions.append(actionDebug)
 
-        actions = list()
         for subentry in toolData.get("subEntries", list()):
             if "cmdline" not in subentry:
                 continue
@@ -354,7 +355,7 @@ class SimpleWindow:
                                                         t,
                                                         overrideCmdLine=s["cmdline"],
                                                         overrideCwd=s.get("workingDir", None),
-                                                        overrideEnv=s.get("environments", None)))
+                                                        overrideEnv=s.get("envvars", None)))
             menu.addAction(actionSubEntryRelease)
             actions.append(actionSubEntryRelease)
 
@@ -366,7 +367,7 @@ class SimpleWindow:
                                                           debug=True,
                                                           overrideCmdLine=s["cmdline"],
                                                           overrideCwd=s.get("workingDir", None),
-                                                          overrideEnv=s.get("environments", None)))
+                                                          overrideEnv=s.get("envvars", None)))
                 actions.append(actionSubEntryDebug)
                 debugMenu.addAction(actionSubEntryDebug)
 
