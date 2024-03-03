@@ -6,12 +6,19 @@ def main(resourcePath: str):
     # from usdmgr.qt.main_window import MainWindow
     from usdmgr.qt.simple_window import SimpleWindow
 
-    if not Config.initialize():
-        sys.exit(1)
-
     app = QApplication()
     app.setApplicationName("usdmgr")
     app.setApplicationDisplayName("USD Manager")
-    window = SimpleWindow(resourcePath)
-    window.showWindow()
-    sys.exit(app.exec_())
+
+    if not Config.initialize():
+        sys.exit(1)
+
+    restart = True
+    while restart:
+        window = SimpleWindow(resourcePath)
+        window.showWindow()
+        ret = app.exec_()
+        Config.getInstance().save()
+        if not (ret == 0 and window.restart):
+            break
+    sys.exit(ret)

@@ -18,7 +18,6 @@ class Config:
         if not dirpath:
             print("No directory path to save tool config file.")
             return False
-        dirpath = os.path.join(dirpath, "usdmgr")
         os.makedirs(dirpath, exist_ok=True)
         filepath = os.path.join(dirpath, "config.json")
         cls._instance = cls(filepath)
@@ -35,7 +34,7 @@ class Config:
     def getInstance(cls):
         return cls._instance
 
-    def _save(self) -> bool:
+    def save(self) -> bool:
         import json
         try:
             with open(self._filepath, mode="w", encoding="utf-8") as fp:
@@ -48,11 +47,11 @@ class Config:
     def getValue(self, key: str, defaultValue=None):
         return self._config.get(key, defaultValue)
 
-    def setValue(self, key: str, value, *, with_save=True):
+    def setValue(self, key: str, value, *, with_save=False):
         """ 値を設定する. value に None を指定すると, 指定のキーを削除する. """
         if value is not None:
             self._config[key] = value
         elif key in self._config:
             del self._config[key]
         if with_save:
-            self._save()
+            self.save()

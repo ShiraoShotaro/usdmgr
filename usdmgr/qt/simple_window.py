@@ -1,5 +1,5 @@
 import os
-from PySide2.QtCore import Qt, QStandardPaths, QSignalBlocker
+from PySide2.QtCore import Qt, QStandardPaths, QSignalBlocker, QSize
 from PySide2.QtGui import QIcon
 from PySide2.QtWidgets import (
     QAction,
@@ -12,7 +12,9 @@ from PySide2.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QSlider,
 )
+from usdmgr.config import Config
 
 
 class SignalBlocker:
@@ -30,6 +32,7 @@ class SimpleWindow:
     def __init__(self, resourcePath):
         from PySide2.QtUiTools import QUiLoader
         self._resourcePath = resourcePath
+        self._restart = False
         self.ui: QMainWindow = QUiLoader().load(os.path.join(self._resourcePath, "simple_window.ui"), None)
         self.ui.setWindowTitle("USD Manager - Simple")
 
@@ -39,22 +42,30 @@ class SimpleWindow:
         self.actionReloadSettingsJson: QAction = self.ui.actionReloadSettingsJson
         self.actionExit: QAction = self.ui.actionExit
         self.menuWindow: QMenu = self.ui.menuWindow
+        self.actionPreference: QAction = self.ui.actionPreference
         self.cbUSDEnvironment: QComboBox = self.ui.cbUSDEnvironment
         self.lwTools: QListWidget = self.ui.lwTools
+        self.hsIconSize: QSlider = self.ui.hsIconSize
         self.pbOpenUsdView: QPushButton = self.ui.pbOpenUsdView
         self.lwUsdViewHistory: QListWidget = self.ui.lwUsdViewHistory
-        self.pteEnvironment: QPlainTextEdit = self.ui.pteEnvironment
         self.dwLog: QDockWidget = self.ui.dwLog
         self.pteLog: QPlainTextEdit = self.ui.pteLog
 
         self.menuWindow.addAction(self.dwLog.toggleViewAction())
         self.lwTools.setContextMenuPolicy(Qt.CustomContextMenu)
         self.lwTools.customContextMenuRequested.connect(self._e_onToolsCustomContextMenuRequested)
+        self.actionPreference.triggered.connect(self.openPreference)
 
         # load jsons
-        self._configDirpath = QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)
+        self._configDirpath = Config.getInstance().getValue("se.configDirectory", "")
+        if self._configDirpath and not os.path.isdir(self._configDirpath):
+            QMessageBox.critical(self, "Error", f"Invalid config directory. {self._configDirpath}")
+            self._configDirpath = ""
+            Config.getInstance().setValue("se.configDirectory", None)
         if not self._configDirpath:
-            raise RuntimeError("No directory path to save tool config file.")
+            self._configDirpath = QStandardPaths.writableLocation(QStandardPaths.AppConfigLocation)
+            if not self._configDirpath:
+                raise RuntimeError("No directory path to save tool config file.")
         self._environmentFilepath = os.path.join(self._configDirpath, "env.json")
         self._toolsFilepath = os.path.join(self._configDirpath, "tools.json")
         self._environment = None
@@ -71,9 +82,23 @@ class SimpleWindow:
         self.actionReloadSettingsJson.triggered.connect(self._reloadConfigAndWidgets)
         self.cbUSDEnvironment.currentIndexChanged.connect(self._onCurrentEnvironmentChanged)
         self.lwTools.itemClicked.connect(self._e_onToolClicked)
+        self.hsIconSize.valueChanged.connect(self._e_onToolIconSizeValueChanged)
+
+        # fetch config
+        iconSize = Config.getInstance().getValue("se.toolsIconSize", 10)
+        envCurrentLabel = Config.getInstance().getValue("se.currentEnvLabel", None)
 
         # initialize widget
         self._initializeWidget()
+
+        # restore config
+        self.hsIconSize.setValue(iconSize)
+        if envCurrentLabel:
+            self.cbUSDEnvironment.setCurrentText(envCurrentLabel)
+
+    @property
+    def restart(self) -> bool:
+        return self._restart
 
     def _getIcon(self, filepath: str) -> QIcon:
         if filepath not in self._icons:
@@ -170,6 +195,7 @@ class SimpleWindow:
             self.lwTools.clear()
         elif index < self.cbUSDEnvironment.count():
             self._initializeTools()
+            Config.getInstance().setValue("se.currentEnvLabel", self.cbUSDEnvironment.currentText())
 
     def _initializeTools(self):
         self.lwTools.clear()
@@ -199,6 +225,14 @@ class SimpleWindow:
             toolData = item.data(Qt.UserRole)
             self.startupTool(toolData)
 
+    def _e_onToolIconSizeValueChanged(self, value):
+        Config.getInstance().setValue("se.toolsIconSize", value)
+        self._setToolIconSize(value * 10)
+
+    def _setToolIconSize(self, size):
+        self.lwTools.setIconSize(QSize(size, size))
+        self.lwTools.setGridSize(QSize(size + 10, size + 20))
+
     def startupTool(
             self,
             toolData: dict,
@@ -210,7 +244,7 @@ class SimpleWindow:
         import subprocess
         if not toolData:
             return
-        cmdline = toolData.get("cmdline", None)
+        cmdline = overrideCmdLine if overrideCmdLine else toolData.get("cmdline", None)
         if not cmdline:
             QMessageBox.critical(self, "Error", "Failed to startup tool. \"cmdline\" is empty.")
             return
@@ -228,7 +262,8 @@ class SimpleWindow:
             return
 
         env = dict(os.environ)
-        for key, value in toolData.get("envvars", dict()).items():
+        customEnvs = overrideEnv if overrideEnv else toolData.get("envvars", dict())
+        for key, value in customEnvs.items():
             expanded = os.path.expandvars(value)
             env[key] = expanded
 
@@ -241,7 +276,9 @@ class SimpleWindow:
         _toUpperKey("PYTHONPATH")
 
         cwd = self._configDirpath
-        if "workingDir" in toolData:
+        if overrideCwd is not None:
+            cwd = overrideCwd
+        elif "workingDir" in toolData:
             cwd = os.path.expandvars(toolData["workingDir"])
 
         cmdline = os.path.expandvars(cmdline)
@@ -271,12 +308,14 @@ class SimpleWindow:
         pythonVersion = "_"
         configVariant = "debug" if debug else "release"
         if requirePython:
-            version = usdenv.get("version", None)
+            version = usdenv.get("python", dict()).get("version", None)
             if version is not None:
                 pythonMajor, pythonMinor = version
             else:
+                pvenv = os.environ.copy()
+                pvenv["PATH"] = f"{venv}/Scripts"
                 ret = subprocess.run(["python", "--version"],
-                                     env=dict(PATH=f"{venv}/Scripts"),
+                                     env=pvenv,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      encoding="utf-8")
@@ -372,6 +411,12 @@ class SimpleWindow:
                 debugMenu.addAction(actionSubEntryDebug)
 
         menu.exec_(gp)
+
+    def openPreference(self):
+        from .simple_preference_dialog import SimplePreferenceDialog
+        SimplePreferenceDialog.showDialog(self.ui, self._resourcePath)
+        self._restart = True
+        self.ui.close()
 
     def showWindow(self):
         self.ui.show()
