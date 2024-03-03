@@ -122,6 +122,7 @@ Settings メニューから Open Tools Json を押します.
         {
             "label": "ツール名ラベル",
             "hidden": false,
+            "release": true,
             "debug": true,
             "requirePython": false,
             "iconPath": "path/to/icon.png",
@@ -152,8 +153,12 @@ Settings メニューから Open Tools Json を押します.
 #### hidden
 `True` の場合, ツールを非表示にします. 省略可能で, デフォルトだと `False` (表示) です.
 
+#### release
+`True` の場合, USD のリリース版を利用します.
+`False` の場合, アイコンをクリックしての起動はできません.
+
 #### debug
-`True` の場合, USD のデバッグ版を利用します.
+`True` の場合, USD のデバッグ版を利用します. `release` の値に関わらず, debug 版はアイコンを右クリックして表示されるコンテキストメニューからのみ起動できます.
 
 #### requirePython
 `True` の場合, python 環境でのみ起動します.
